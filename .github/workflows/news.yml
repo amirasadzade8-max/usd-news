@@ -1,0 +1,24 @@
+name: Daily USD News
+
+on:
+  schedule:
+    # ۱۳:۰۰ UTC = ۹:۰۰ نیویورک در ساعت تابستانی (EDT)
+    - cron: "0 13 * * 1-5"
+    # ۱۴:۰۰ UTC = ۹:۰۰ نیویورک در ساعت زمستانی (EST)
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch:   # اجرای دستی برای تست
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Send news
+        run: python send_news.py
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
