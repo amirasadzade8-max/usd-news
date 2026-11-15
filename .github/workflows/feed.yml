@@ -1,0 +1,38 @@
+name: Update Feed
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # هر ۳ ساعت
+  workflow_dispatch:          # اجرای دستی برای تست
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch feed (with retries)
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -sS -o feed.tmp -w "%{http_code}" -A "Mozilla/5.0" \
+              https://nfs.faireconomy.media/ff_calendar_thisweek.json || echo 000)
+            if [ "$code" = "200" ] && python3 -c "import json; d=json.load(open('feed.tmp')); assert isinstance(d, list) and len(d) > 0"; then
+              mv feed.tmp feed.json
+              echo "OK on attempt $i"
+              exit 0
+            fi
+            echo "attempt $i failed (status $code)"
+            sleep 150
+          done
+          echo "all attempts failed"
+          exit 1
+
+      - name: Commit if changed
+        run: |
+          git config user.name "feed-bot"
+          git config user.email "feed-bot@users.noreply.github.com"
+          git add feed.json
+          git diff --cached --quiet || (git commit -m "update feed" && git push)
